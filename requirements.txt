@@ -1,7 +1,8 @@
 streamlit == 1.36.0
 pdf2image == 1.17.0
 opencv-python-headless == 4.10.0.84
-opencv-python == 4.10.0.84
+pillow == 10.4.0
+PyMuPDF == 1.24.7
 numpy == 2.0.0
 google-cloud-vision == 3.7.3
 streamlit-drawable-canvas == 0.9.3
