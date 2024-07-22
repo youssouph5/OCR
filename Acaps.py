@@ -1,6 +1,5 @@
 import streamlit as st
 from pdf2image import convert_from_path
-import cv2
 import numpy as np
 from google.cloud import vision
 from google.oauth2 import service_account
@@ -12,6 +11,13 @@ st.title("OCR Application")
 # Sidebar for entering Google Cloud Vision API key
 st.sidebar.title("Google Cloud Vision API Configuration")
 json_key = st.sidebar.text_area("Enter your Google Cloud Vision API key (JSON format)", height=300)
+
+# Try to import OpenCV and handle import errors
+try:
+    import cv2
+except ImportError as e:
+    st.error("Failed to import OpenCV. Please make sure it is installed correctly.")
+    st.stop()
 
 # Upload PDF file
 uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
