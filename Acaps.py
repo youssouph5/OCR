@@ -1,5 +1,5 @@
 import streamlit as st
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 import cv2
 import numpy as np
 from google.cloud import vision
@@ -26,6 +26,16 @@ def get_client_from_json_file(json_file):
         st.sidebar.error(f"Failed to create client: {e}")
         return None
 
+def convert_pdf_to_image(file_path):
+    # Open the PDF file
+    doc = fitz.open(file_path)
+    # Select the first page
+    page = doc.load_page(0)
+    # Convert the page to an image
+    pix = page.get_pixmap()
+    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+    return np.array(img)
+
 if json_file is not None:
     client = get_client_from_json_file(json_file)
     
@@ -35,8 +45,7 @@ if json_file is not None:
             f.write(uploaded_file.getbuffer())
 
         # Convert PDF to images
-        images = convert_from_path("uploaded_file.pdf")
-        img = np.array(images[0])  # Convert the first page to a numpy array
+        img = convert_pdf_to_image("uploaded_file.pdf")
 
         # Define coordinates for the region containing customer information
         top = 200  # Define the top of the crop area
