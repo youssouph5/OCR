@@ -15,8 +15,8 @@ st.title("OCR Application")
 st.sidebar.title("Google Cloud Vision API Configuration")
 json_file = st.sidebar.file_uploader("Upload your Google Cloud Vision API key file (JSON)", type=["json"])
 
-# Upload PDF file
-uploaded_file = st.file_uploader("Upload a PDF file", type=["pdf"])
+# Upload PDF or Image file
+uploaded_file = st.file_uploader("Upload a PDF or Image file", type=["pdf", "png", "jpg", "jpeg"])
 
 def get_client_from_json_file(json_file):
     try:
