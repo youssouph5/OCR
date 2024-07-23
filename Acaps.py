@@ -47,13 +47,23 @@ if json_file is not None:
     client = get_client_from_json_file(json_file)
     
     if client and uploaded_file is not None:
-        # Save uploaded file to disk
-        with open("uploaded_file.pdf", "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        file_type = uploaded_file.type.split('/')[0]
+        
+        if file_type == 'application':
+            # Save uploaded PDF file to disk
+            with open("uploaded_file.pdf", "wb") as f:
+                f.write(uploaded_file.getbuffer())
 
-        # Convert PDF to images
-        images = convert_pdf_to_images("uploaded_file.pdf")
-
+            # Convert PDF to images
+            images = convert_pdf_to_images("uploaded_file.pdf")
+        elif file_type == 'image':
+            # Load the uploaded image
+            img = Image.open(uploaded_file)
+            images = [np.array(img)]
+        else:
+            images = None
+            st.error("Unsupported file type.")
+        
         if images is not None:
             for i, img in enumerate(images):
                 # Display each image and allow user to draw a region
