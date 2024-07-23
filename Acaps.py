@@ -7,6 +7,7 @@ from google.oauth2 import service_account
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 import json
+import logging
 
 # Initialize Streamlit app
 st.title("OCR Application")
@@ -41,7 +42,35 @@ def convert_pdf_to_images(file_path):
         return images
     except Exception as e:
         st.error(f"Failed to convert PDF to images: {e}")
+        logging.error(f"Failed to convert PDF to images: {e}")
         return None
+
+def perform_ocr(client, img):
+    # Convert image to grayscale
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    success, img_jpg = cv2.imencode('.jpg', img_gray)
+    byte_img = img_jpg.tobytes()
+    google_img = vision.Image(content=byte_img)
+    resp = client.text_detection(image=google_img)
+    return resp
+
+def format_text_by_coordinates(text_annotations):
+    lines = []
+    for annotation in text_annotations:
+        vertices = annotation.bounding_poly.vertices
+        top_left = (vertices[0].x, vertices[0].y)
+        bottom_right = (vertices[2].x, vertices[2].y)
+        lines.append((top_left, bottom_right, annotation.description))
+    
+    lines = sorted(lines, key=lambda x: (x[0][1], x[0][0]))  # Sort by y, then by x
+    formatted_text = ""
+    current_y = -1
+    for line in lines:
+        if current_y != -1 and abs(line[0][1] - current_y) > 20:  # new line threshold
+            formatted_text += "\n"
+        formatted_text += line[2] + " "
+        current_y = line[0][1]
+    return formatted_text.strip()
 
 if json_file is not None:
     client = get_client_from_json_file(json_file)
@@ -50,20 +79,25 @@ if json_file is not None:
         file_type = uploaded_file.type.split('/')[0]
         
         if file_type == 'application':
-            # Save uploaded PDF file to disk
-            with open("uploaded_file.pdf", "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            try:
+                # Save uploaded PDF file to disk
+                with open("uploaded_file.pdf", "wb") as f:
+                    f.write(uploaded_file.getbuffer())
 
-            # Convert PDF to images
-            images = convert_pdf_to_images("uploaded_file.pdf")
+                # Convert PDF to images
+                images = convert_pdf_to_images("uploaded_file.pdf")
+            except Exception as e:
+                st.error(f"Error processing PDF file: {e}")
+                images = None
         elif file_type == 'image':
-            # Load the uploaded image
-            img = Image.open(uploaded_file)
-            images = [np.array(img)]
-        else:
-            images = None
-            st.error("Unsupported file type.")
-        
+            try:
+                # Load the uploaded image
+                img = Image.open(uploaded_file)
+                images = [np.array(img)]
+            except Exception as e:
+                st.error(f"Error processing image file: {e}")
+                images = None
+
         if images is not None:
             for i, img in enumerate(images):
                 # Display each image and allow user to draw a region
@@ -95,16 +129,10 @@ if json_file is not None:
                             # Crop the image to the user-defined region
                             img_cropped = img[top:bottom, left:right]
 
-                            # Convert to grayscale
-                            img_gray = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2GRAY)
-
                             # OCR with Google Cloud Vision
-                            success, img_jpg = cv2.imencode('.jpg', img_gray)
-                            byte_img = img_jpg.tobytes()
-                            google_img = vision.Image(content=byte_img)
-                            resp = client.text_detection(image=google_img)
-                            if resp.text_annotations:
-                                ocr_output = resp.text_annotations[0].description.replace('\n', ' ')
+                            resp = perform_ocr(client, img_cropped)
+                            if resp and resp.text_annotations:
+                                ocr_output = format_text_by_coordinates(resp.text_annotations)
                             else:
                                 ocr_output = "No text detected"
 
@@ -113,6 +141,6 @@ if json_file is not None:
                             st.write(ocr_output)
 
                             # Optionally, show cropped image
-                            st.image(img_gray, caption="Cropped Image", use_column_width=True)
+                            st.image(img_cropped, caption="Cropped Image", use_column_width=True)
 else:
     st.sidebar.warning("Please upload your Google Cloud Vision API key file.")
